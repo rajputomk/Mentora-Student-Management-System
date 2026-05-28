@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Header from '@/components/Header.jsx';
 import Sidebar from '@/components/Sidebar.jsx';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TestsPage = () => {
@@ -23,6 +23,7 @@ const TestsPage = () => {
     });
     const [marksData, setMarksData] = useState({});
     const [saving, setSaving] = useState(false);
+    const [editingTestId, setEditingTestId] = useState(null);
 
     useEffect(() => {
         loadBatches();
@@ -56,58 +57,125 @@ const TestsPage = () => {
         setSaving(true);
 
         try {
-            const { data: testData, error: createError } = await supabase.from('tests').insert([testFormData]).select();
-            if (createError) throw createError;
-            const test = testData[0];
-            toast.success('Test created successfully');
-            setShowTestForm(false);
-            setTestFormData({
-                name: '',
-                batch_id: '',
-                date: '',
-                max_marks: ''
-            });
-            loadTests();
+            if (editingTestId) {
+                const { error: updateError } = await supabase
+                    .from('tests')
+                    .update({
+                        name: testFormData.name,
+                        batch_id: testFormData.batch_id,
+                        date: testFormData.date,
+                        max_marks: parseInt(testFormData.max_marks)
+                    })
+                    .eq('id', editingTestId);
+                if (updateError) throw updateError;
 
-            const { data: assignments, error: assignmentsError } = await supabase
-                .from('student_batches')
-                .select('*, students(*)')
-                .eq('batch_id', testFormData.batch_id);
-            if (assignmentsError) throw assignmentsError;
+                toast.success('Test updated successfully');
+                setShowTestForm(false);
+                setEditingTestId(null);
+                setTestFormData({
+                    name: '',
+                    batch_id: '',
+                    date: '',
+                    max_marks: ''
+                });
+                loadTests();
+            } else {
+                const { data: testData, error: createError } = await supabase.from('tests').insert([testFormData]).select();
+                if (createError) throw createError;
+                const test = testData[0];
+                toast.success('Test created successfully');
+                setShowTestForm(false);
+                setTestFormData({
+                    name: '',
+                    batch_id: '',
+                    date: '',
+                    max_marks: ''
+                });
+                loadTests();
 
-            const studentsList = (assignments || []).map(a => a.students).filter(Boolean);
-            setStudents(studentsList);
-            setSelectedTest(test);
+                const { data: assignments, error: assignmentsError } = await supabase
+                    .from('student_batches')
+                    .select('*, students(*)')
+                    .eq('batch_id', testFormData.batch_id);
+                if (assignmentsError) throw assignmentsError;
 
-            const initialMarks = {};
-            studentsList.forEach(student => {
-                initialMarks[student.id] = { marks: '', remarks: '' };
-            });
-            setMarksData(initialMarks);
+                const studentsList = (assignments || []).map(a => a.students).filter(Boolean);
+                setStudents(studentsList);
+                setSelectedTest(test);
 
-            setShowMarksForm(true);
+                const initialMarks = {};
+                studentsList.forEach(student => {
+                    initialMarks[student.id] = { marks: '', remarks: '' };
+                });
+                setMarksData(initialMarks);
+
+                setShowMarksForm(true);
+            }
         } catch (error) {
-            console.error('Error creating test:', error);
-            toast.error('Failed to create test');
+            console.error('Error saving test:', error);
+            toast.error(editingTestId ? 'Failed to update test' : 'Failed to create test');
         } finally {
             setSaving(false);
         }
     };
 
+    const handleEditTest = (test) => {
+        setEditingTestId(test.id);
+        setTestFormData({
+            name: test.name,
+            batch_id: test.batch_id,
+            date: test.date,
+            max_marks: test.max_marks.toString()
+        });
+        setShowTestForm(true);
+    };
+
+    const handleDeleteTest = async (testId) => {
+        if (!window.confirm('Are you sure you want to delete this test? All student marks for this test will also be deleted.')) return;
+        
+        try {
+            const { error } = await supabase.from('tests').delete().eq('id', testId);
+            if (error) throw error;
+            toast.success('Test deleted successfully');
+            loadTests();
+        } catch (error) {
+            console.error('Error deleting test:', error);
+            toast.error('Failed to delete test');
+        }
+    };
+
+    const handleCloseTestForm = () => {
+        setShowTestForm(false);
+        setEditingTestId(null);
+        setTestFormData({
+            name: '',
+            batch_id: '',
+            date: '',
+            max_marks: ''
+        });
+    };
+
     const handleSaveMarks = async () => {
         setSaving(true);
         try {
+            const upsertData = [];
             for (const student of students) {
                 const data = marksData[student.id];
-                if (data.marks !== '') {
-                    const { error: insertError } = await supabase.from('test_results').insert([{
+                if (data && data.marks !== '') {
+                    upsertData.push({
                         student_id: student.id,
                         test_id: selectedTest.id,
                         marks: parseInt(data.marks),
                         remarks: data.remarks
-                    }]);
-                    if (insertError) throw insertError;
+                    });
                 }
+            }
+
+            if (upsertData.length > 0) {
+                const { error: upsertError } = await supabase
+                    .from('test_results')
+                    .upsert(upsertData, { onConflict: 'student_id,test_id' });
+                if (upsertError) throw upsertError;
             }
 
             toast.success('Marks saved successfully');
@@ -180,7 +248,7 @@ const TestsPage = () => {
                                     <h1 className="text-3xl font-bold mb-2">Tests & Marks</h1>
                                     <p className="text-muted-foreground">Create tests and enter student marks</p>
                                 </div>
-                                <Button onClick={() => setShowTestForm(true)} className="transition-all duration-200 active:scale-95">
+                                <Button onClick={() => { setEditingTestId(null); setTestFormData({ name: '', batch_id: '', date: '', max_marks: '' }); setShowTestForm(true); }} className="transition-all duration-200 active:scale-95">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Create Test
                                 </Button>
@@ -207,14 +275,34 @@ const TestsPage = () => {
                                                     <td>{test.date}</td>
                                                     <td>{test.max_marks}</td>
                                                     <td>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleEnterMarks(test)}
-                                                            className="transition-all duration-200 active:scale-95"
-                                                        >
-                                                            Enter Marks
-                                                        </Button>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleEnterMarks(test)}
+                                                                className="transition-all duration-200 active:scale-95"
+                                                            >
+                                                                Enter Marks
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleEditTest(test)}
+                                                                className="transition-all duration-200 active:scale-95"
+                                                            >
+                                                                <Edit className="h-4 w-4 mr-2" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleDeleteTest(test.id)}
+                                                                className="transition-all duration-200 active:scale-95 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 dark:border-red-900/50 dark:hover:bg-red-950/20"
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Delete
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -237,7 +325,7 @@ const TestsPage = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-card rounded-xl max-w-md w-full">
                         <div className="p-6 border-b border-border">
-                            <h2 className="text-xl font-bold">Create New Test</h2>
+                            <h2 className="text-xl font-bold">{editingTestId ? 'Edit Test' : 'Create New Test'}</h2>
                         </div>
 
                         <form onSubmit={handleCreateTest} className="p-6 space-y-4">
@@ -297,13 +385,13 @@ const TestsPage = () => {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => setShowTestForm(false)}
+                                    onClick={handleCloseTestForm}
                                     className="flex-1"
                                 >
                                     Cancel
                                 </Button>
                                 <Button type="submit" disabled={saving} className="flex-1 transition-all duration-200 active:scale-95">
-                                    {saving ? 'Creating...' : 'Create Test'}
+                                    {saving ? (editingTestId ? 'Saving...' : 'Creating...') : (editingTestId ? 'Save Changes' : 'Create Test')}
                                 </Button>
                             </div>
                         </form>

@@ -3,7 +3,8 @@ import { X, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
+import AttendanceCalendar from './AttendanceCalendar.jsx';
 
 const StudentProfile = ({ studentId, onClose }) => {
     const [student, setStudent] = useState(null);
@@ -13,8 +14,6 @@ const StudentProfile = ({ studentId, onClose }) => {
     const [notes, setNotes] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
 
     useEffect(() => {
         loadStudentData();
@@ -65,76 +64,7 @@ const StudentProfile = ({ studentId, onClose }) => {
         return Math.round(total / testResults.length);
     };
 
-    const getMonthlyAttendanceSummary = () => {
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
 
-        const monthAttendance = attendance.filter(a => {
-            if (!a.sessions?.date) return false;
-            const sessionDate = new Date(a.sessions.date);
-            return sessionDate >= monthStart && sessionDate <= monthEnd;
-        });
-
-        const present = monthAttendance.filter(a => a.status === 'Present').length;
-        const absent = monthAttendance.filter(a => a.status === 'Absent').length;
-        const late = monthAttendance.filter(a => a.status === 'Late').length;
-
-        return { present, absent, late, total: monthAttendance.length };
-    };
-
-    const renderCalendar = () => {
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
-        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-        return (
-            <div className="grid grid-cols-7 gap-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                        {day}
-                    </div>
-                ))}
-                {days.map(day => {
-                    const dayAttendance = attendance.find(a => {
-                        if (!a.sessions?.date) return false;
-                        return isSameDay(new Date(a.sessions.date), day);
-                    });
-
-                    let bgColor = 'bg-muted';
-                    let customStyle = {};
-                    if (dayAttendance) {
-                        const status = dayAttendance.status?.toLowerCase();
-                        if (status === 'present') {
-                            customStyle = { backgroundColor: 'rgba(155, 255, 190, 1)', borderColor: 'rgba(130, 215, 160, 1)', color: '#052e16' };
-                            bgColor = '';
-                        } else if (status === 'absent') {
-                            customStyle = { backgroundColor: 'rgba(255, 190, 190, 1)', borderColor: 'rgba(215, 150, 150, 1)', color: '#450a0a' };
-                            bgColor = '';
-                        } else if (status === 'late') {
-                            customStyle = { backgroundColor: 'rgba(255, 225, 155, 1)', borderColor: 'rgba(215, 185, 120, 1)', color: '#422006' };
-                            bgColor = '';
-                        }
-                    }
-
-                    return (
-                        <button
-                            key={day.toISOString()}
-                            onClick={() => dayAttendance && setSelectedDate(dayAttendance)}
-                            className={`
-                aspect-square rounded-lg border-2 border-transparent text-sm font-medium
-                transition-all duration-200 hover:scale-105
-                ${bgColor}
-                ${dayAttendance ? 'cursor-pointer' : 'cursor-default'}
-              `}
-                            style={customStyle}
-                        >
-                            {format(day, 'd')}
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
 
     const getPerformanceChartData = () => {
         return testResults.slice(0, 10).reverse().map(result => ({
@@ -153,8 +83,6 @@ const StudentProfile = ({ studentId, onClose }) => {
             </div>
         );
     }
-
-    const monthSummary = getMonthlyAttendanceSummary();
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -194,53 +122,8 @@ const StudentProfile = ({ studentId, onClose }) => {
                         </div>
                     </div>
 
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold">Attendance - {format(currentMonth, 'MMMM yyyy')}</h3>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
-                                >
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(155, 255, 190, 0.4)' }}>
-                                <div className="text-2xl font-bold text-green-800">{monthSummary.present}</div>
-                                <div className="text-xs text-green-700">Present</div>
-                            </div>
-                            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 190, 190, 0.4)' }}>
-                                <div className="text-2xl font-bold text-red-800">{monthSummary.absent}</div>
-                                <div className="text-xs text-red-700">Absent</div>
-                            </div>
-                            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 225, 155, 0.4)' }}>
-                                <div className="text-2xl font-bold text-yellow-800">{monthSummary.late}</div>
-                                <div className="text-xs text-yellow-700">Late</div>
-                            </div>
-                        </div>
-
-                        {renderCalendar()}
-
-                        {selectedDate && (
-                            <div className="mt-4 p-4 bg-muted rounded-lg">
-                                <h4 className="font-semibold mb-2">Session Details</h4>
-                                <p className="text-sm"><span className="text-muted-foreground">Date:</span> {format(new Date(selectedDate.sessions?.date), 'PPP')}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Time:</span> {selectedDate.sessions?.start_time} - {selectedDate.sessions?.end_time}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Topic:</span> {selectedDate.sessions?.topic}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Status:</span> <span className={`status-${selectedDate.status.toLowerCase()}`}>{selectedDate.status}</span></p>
-                            </div>
-                        )}
+                    <div className="mentora-card">
+                        <AttendanceCalendar attendance={attendance} />
                     </div>
 
                     <div>

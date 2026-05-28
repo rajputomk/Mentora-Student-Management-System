@@ -25,6 +25,12 @@ export const AuthProvider = ({ children }) => {
             try {
                 setCurrentUser(JSON.parse(storedUser));
                 setUserRole(storedRole);
+                if (storedRole === 'parent') {
+                    const student = localStorage.getItem('mentora_student');
+                    if (student) {
+                        setStudentData(JSON.parse(student));
+                    }
+                }
             } catch (e) {
                 console.error("Failed to parse stored session");
             }
@@ -105,6 +111,7 @@ export const AuthProvider = ({ children }) => {
             setCurrentUser(parentUser);
             localStorage.setItem('mentora_user', JSON.stringify(parentUser));
             localStorage.setItem('mentora_role', 'parent');
+            localStorage.setItem('mentora_student', JSON.stringify(student));
             return student;
         } catch (error) {
             recordLoginAttempt(studentLoginId);
@@ -115,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         localStorage.removeItem('mentora_user');
         localStorage.removeItem('mentora_role');
+        localStorage.removeItem('mentora_student');
         setCurrentUser(null);
         setUserRole(null);
         setStudentData(null);

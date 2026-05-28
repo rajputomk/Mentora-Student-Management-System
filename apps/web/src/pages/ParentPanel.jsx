@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Button } from '@/components/ui/button';
 import { LogOut, Calendar as CalendarIcon, TrendingUp, DollarSign } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
+import AttendanceCalendar from '../components/AttendanceCalendar.jsx';
 
 const ParentPanel = () => {
     const { studentData, logout } = useAuth();
@@ -17,8 +18,6 @@ const ParentPanel = () => {
     const [notes, setNotes] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
 
     useEffect(() => {
         if (studentData) {
@@ -70,66 +69,7 @@ const ParentPanel = () => {
         return Math.round(total / testResults.length);
     };
 
-    const getMonthlyAttendanceSummary = () => {
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
 
-        const monthAttendance = attendance.filter(a => {
-            if (!a.sessions?.date) return false;
-            const sessionDate = new Date(a.sessions.date);
-            return sessionDate >= monthStart && sessionDate <= monthEnd;
-        });
-
-        const present = monthAttendance.filter(a => a.status === 'Present').length;
-        const absent = monthAttendance.filter(a => a.status === 'Absent').length;
-        const late = monthAttendance.filter(a => a.status === 'Late').length;
-
-        return { present, absent, late, total: monthAttendance.length };
-    };
-
-    const renderCalendar = () => {
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
-        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-        return (
-            <div className="grid grid-cols-7 gap-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                        {day}
-                    </div>
-                ))}
-                {days.map(day => {
-                    const dayAttendance = attendance.find(a => {
-                        if (!a.sessions?.date) return false;
-                        return isSameDay(new Date(a.sessions.date), day);
-                    });
-
-                    let bgColor = 'bg-muted';
-                    if (dayAttendance) {
-                        if (dayAttendance.status === 'Present') bgColor = 'bg-green-100 border-green-500';
-                        else if (dayAttendance.status === 'Absent') bgColor = 'bg-red-100 border-red-500';
-                        else if (dayAttendance.status === 'Late') bgColor = 'bg-yellow-100 border-yellow-500';
-                    }
-
-                    return (
-                        <button
-                            key={day.toISOString()}
-                            onClick={() => dayAttendance && setSelectedDate(dayAttendance)}
-                            className={`
-                aspect-square rounded-lg border-2 border-transparent text-sm font-medium
-                transition-all duration-200 hover:scale-105
-                ${bgColor}
-                ${dayAttendance ? 'cursor-pointer' : 'cursor-default'}
-              `}
-                        >
-                            {format(day, 'd')}
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
 
     const getPerformanceChartData = () => {
         return testResults.slice(0, 10).reverse().map(result => ({
@@ -151,8 +91,6 @@ const ParentPanel = () => {
             </div>
         );
     }
-
-    const monthSummary = getMonthlyAttendanceSummary();
 
     return (
         <>
@@ -181,89 +119,88 @@ const ParentPanel = () => {
                 </header>
 
                 <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="mentora-card">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <CalendarIcon className="h-6 w-6 text-blue-600" />
+                    {/* Student Information Card */}
+                    <div className="mentora-card">
+                        <h2 className="text-2xl font-bold mb-6 text-foreground">Student Information</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-foreground">
+                            <div className="space-y-4">
+                                <p>
+                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Student Name</span> 
+                                    <span className="font-semibold text-lg">{studentData?.name}</span>
+                                </p>
+                                <p>
+                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Student ID</span> 
+                                    <span className="font-semibold">{studentData?.student_login_id}</span>
+                                </p>
+                                <p>
+                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Standard / Class</span> 
+                                    <span className="font-semibold">{studentData?.standard}</span>
+                                </p>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <p>
+                                        <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Phone Number</span> 
+                                        <span className="font-semibold">{studentData?.phone || 'Not Provided'}</span>
+                                    </p>
+                                    <p>
+                                        <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Parent Phone</span> 
+                                        <span className="font-semibold">{studentData?.parent_phone || 'Not Provided'}</span>
+                                    </p>
                                 </div>
+                                <p>
+                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Email Address</span> 
+                                    <span className="font-semibold">{studentData?.email || 'Not Provided'}</span>
+                                </p>
+                                <p>
+                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Residential Address</span> 
+                                    <span className="font-semibold">{studentData?.address || 'Not Provided'}</span>
+                                </p>
                             </div>
-                            <div className="text-3xl font-bold mb-1">{calculateAttendancePercentage()}%</div>
-                            <div className="text-sm text-muted-foreground">Attendance</div>
-                        </div>
-
-                        <div className="mentora-card">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <TrendingUp className="h-6 w-6 text-green-600" />
-                                </div>
-                            </div>
-                            <div className="text-3xl font-bold mb-1">{calculateAverageMarks()}</div>
-                            <div className="text-sm text-muted-foreground">Average Marks</div>
-                        </div>
-
-                        <div className="mentora-card">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                                    <DollarSign className="h-6 w-6 text-red-600" />
-                                </div>
-                            </div>
-                            <div className="text-3xl font-bold mb-1">
-                                {fees.filter(f => f.status === 'Pending').length > 0 ? 'Pending' : 'Paid'}
-                            </div>
-                            <div className="text-sm text-muted-foreground">Fee Status</div>
                         </div>
                     </div>
 
+                    {/* Performance Summary Section */}
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6 text-foreground">Performance Summary</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="mentora-card">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <CalendarIcon className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-bold mb-1 text-foreground">{calculateAttendancePercentage()}%</div>
+                                <div className="text-sm text-muted-foreground">Attendance</div>
+                            </div>
+
+                            <div className="mentora-card">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <TrendingUp className="h-6 w-6 text-green-600" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-bold mb-1 text-foreground">{calculateAverageMarks()}</div>
+                                <div className="text-sm text-muted-foreground">Average Marks</div>
+                            </div>
+
+                            <div className="mentora-card">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <DollarSign className="h-6 w-6 text-red-600" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-bold mb-1 text-foreground">
+                                    {fees.filter(f => f.status === 'Pending').length > 0 ? 'Pending' : 'Paid'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">Fee Status</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Reusable Attendance Calendar Card */}
                     <div className="mentora-card">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold">Attendance - {format(currentMonth, 'MMMM yyyy')}</h2>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
-                                    className="transition-all duration-200 active:scale-95"
-                                >
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
-                                    className="transition-all duration-200 active:scale-95"
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            <div className="text-center p-4 bg-green-50 rounded-lg">
-                                <div className="text-3xl font-bold text-green-700">{monthSummary.present}</div>
-                                <div className="text-sm text-green-600">Present</div>
-                            </div>
-                            <div className="text-center p-4 bg-red-50 rounded-lg">
-                                <div className="text-3xl font-bold text-red-700">{monthSummary.absent}</div>
-                                <div className="text-sm text-red-600">Absent</div>
-                            </div>
-                            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                                <div className="text-3xl font-bold text-yellow-700">{monthSummary.late}</div>
-                                <div className="text-sm text-yellow-600">Late</div>
-                            </div>
-                        </div>
-
-                        {renderCalendar()}
-
-                        {selectedDate && (
-                            <div className="mt-6 p-4 bg-muted rounded-lg">
-                                <h3 className="font-semibold mb-2">Session Details</h3>
-                                <p className="text-sm"><span className="text-muted-foreground">Date:</span> {format(new Date(selectedDate.sessions?.date), 'PPP')}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Time:</span> {selectedDate.sessions?.start_time} - {selectedDate.sessions?.end_time}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Topic:</span> {selectedDate.sessions?.topic}</p>
-                                <p className="text-sm"><span className="text-muted-foreground">Status:</span> <span className={`status-${selectedDate.status.toLowerCase()}`}>{selectedDate.status}</span></p>
-                            </div>
-                        )}
+                        <AttendanceCalendar attendance={attendance} />
                     </div>
 
                     <div className="mentora-card">
