@@ -133,7 +133,7 @@ const BatchesPage = () => {
                 <div className="flex">
                     <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-                    <main className="flex-1 p-6 lg:p-8">
+                    <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
                         <div className="max-w-7xl mx-auto space-y-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -213,8 +213,8 @@ const BatchesPage = () => {
             </div>
 
             {showForm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-card rounded-xl max-w-md w-full">
+                <div className="fixed inset-0 bg-black/50 flex flex-col items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-card rounded-xl max-w-md w-full my-auto">
                         <div className="p-6 border-b border-border">
                             <h2 className="text-xl font-bold">
                                 {editingBatch ? 'Edit Batch' : 'Create New Batch'}

@@ -34,7 +34,7 @@ const Header = ({ onMenuClick }) => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="lg:hidden hover:bg-accent hover:text-accent-foreground text-[#111827]"
+                        className="md:hidden hover:bg-accent hover:text-accent-foreground text-[#111827]"
                         onClick={onMenuClick}
                     >
                         <Menu className="h-5 w-5" />

@@ -53,8 +53,8 @@ const LoginPage = () => {
                 <meta name="description" content="Login to Mentora education management system" />
             </Helmet>
 
-            <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                <div className="w-full max-w-md">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 overflow-y-auto">
+                <div className="w-full max-w-md my-auto">
                     <div className="text-center mb-8">
                         <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
                             <GraduationCap className="h-8 w-8 text-primary-foreground" />
@@ -63,23 +63,23 @@ const LoginPage = () => {
                         <p className="text-muted-foreground">Education management made simple</p>
                     </div>
 
-                    <div className="bg-card rounded-xl border border-border p-6">
-                        <div className="flex gap-2 mb-6">
+                    <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
+                        <div className="flex flex-col sm:flex-row gap-2 mb-6">
                             <Button
                                 variant={mode === 'teacher' ? 'default' : 'outline'}
-                                className="flex-1"
+                                className="flex-1 w-full"
                                 onClick={() => setMode('teacher')}
                             >
-                                <GraduationCap className="h-4 w-4 mr-2" />
-                                Teacher Login
+                                <GraduationCap className="h-4 w-4 mr-2 shrink-0" />
+                                <span>Teacher Login</span>
                             </Button>
                             <Button
                                 variant={mode === 'parent' ? 'default' : 'outline'}
-                                className="flex-1"
+                                className="flex-1 w-full"
                                 onClick={() => setMode('parent')}
                             >
-                                <User className="h-4 w-4 mr-2" />
-                                Parent Login
+                                <User className="h-4 w-4 mr-2 shrink-0" />
+                                <span>Parent Login</span>
                             </Button>
                         </div>
 

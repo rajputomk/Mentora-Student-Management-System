@@ -33,20 +33,22 @@ const Sidebar = ({ isOpen, onClose }) => {
         <>
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-all duration-300"
                     onClick={onClose}
                 />
             )}
 
             <aside
                 className={`
-          fixed top-0 left-0 h-full w-64 bg-sidebar-background border-r border-sidebar-border z-50
+          fixed top-0 left-0 h-full bg-sidebar border-r border-sidebar-border z-50
           transform transition-transform duration-200 ease-in-out
-          lg:translate-x-0 lg:static lg:z-30
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0 md:sticky md:top-[69px] md:h-[calc(100vh-69px)] md:z-30
+          ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full invisible md:visible'}
+          w-[280px] md:w-20 lg:w-64
+          overflow-y-auto
         `}
             >
-                <div className="flex items-center justify-between p-4 border-b border-sidebar-border lg:hidden">
+                <div className="flex items-center justify-between p-4 border-b border-sidebar-border md:hidden">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                             <span className="text-primary-foreground font-bold text-sm">M</span>
@@ -58,7 +60,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </Button>
                 </div>
 
-                <nav className="p-4 space-y-1">
+                <nav className="p-4 md:p-2 lg:p-4 space-y-1">
                     {menuItems.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
@@ -69,15 +71,18 @@ const Sidebar = ({ isOpen, onClose }) => {
                                 to={item.path}
                                 onClick={onClose}
                                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200
+                  flex items-center rounded-lg font-medium transition-all duration-200
+                  gap-3 px-3 py-2.5
+                  md:gap-0 md:justify-center md:py-3
+                  lg:gap-3 lg:justify-start lg:px-3 lg:py-2.5
                   ${active
                                         ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                                         : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
                                     }
                 `}
                             >
-                                <Icon className="h-5 w-5" />
-                                <span>{item.label}</span>
+                                <Icon className="h-5 w-5 shrink-0" />
+                                <span className="md:hidden lg:inline">{item.label}</span>
                             </Link>
                         );
                     })}

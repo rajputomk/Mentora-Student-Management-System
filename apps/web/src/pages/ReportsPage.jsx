@@ -119,7 +119,7 @@ const ReportsPage = () => {
                 <div className="flex">
                     <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-                    <main className="flex-1 p-6 lg:p-8">
+                    <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
                         <div className="max-w-7xl mx-auto space-y-6">
                             <div>
                                 <h1 className="text-3xl font-bold mb-2">Reports & Analytics</h1>
