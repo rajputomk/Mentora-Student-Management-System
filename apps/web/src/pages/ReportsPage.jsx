@@ -5,6 +5,7 @@ import Header from '@/components/Header.jsx';
 import Sidebar from '@/components/Sidebar.jsx';
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { calculateAveragePercentage } from '@/lib/utils';
 
 const ReportsPage = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,7 +23,7 @@ const ReportsPage = () => {
         try {
             const [{ data: students }, { data: testResults }, { data: attendance }, { data: batches }] = await Promise.all([
                 supabase.from('students').select('*'),
-                supabase.from('test_results').select('*'),
+                supabase.from('test_results').select('*, tests(*)'),
                 supabase.from('attendance').select('*'),
                 supabase.from('batches').select('*')
             ]);
@@ -31,10 +32,8 @@ const ReportsPage = () => {
                 const studentTests = (testResults || []).filter(r => r.student_id === student.id);
                 const studentAttendance = (attendance || []).filter(a => a.student_id === student.id);
 
-                const validTests = studentTests.filter(r => r.marks !== null && !r.is_absent);
-                const avgMarks = validTests.length > 0
-                    ? Math.round(validTests.reduce((sum, r) => sum + r.marks, 0) / validTests.length)
-                    : 0;
+                const avgMarks = calculateAveragePercentage(studentTests);
+                const gradedCount = studentTests.filter(r => r.marks !== null && !r.is_absent).length;
 
                 const attendancePercentage = studentAttendance.length > 0
                     ? Math.round((studentAttendance.filter(a => a.status === 'Present').length / studentAttendance.length) * 100)
@@ -44,7 +43,7 @@ const ReportsPage = () => {
                     ...student,
                     avgMarks,
                     attendancePercentage,
-                    testCount: validTests.length
+                    testCount: gradedCount
                 };
             });
 
@@ -148,7 +147,7 @@ const ReportsPage = () => {
                                                     <tr key={student.id}>
                                                         <td className="font-bold text-primary">{index + 1}</td>
                                                         <td className="font-medium">{student.name}</td>
-                                                        <td>{student.avgMarks}</td>
+                                                        <td>{student.avgMarks}%</td>
                                                         <td>{student.attendancePercentage}%</td>
                                                     </tr>
                                                 ))}
@@ -178,7 +177,7 @@ const ReportsPage = () => {
                                                 {weakStudents.map(student => (
                                                     <tr key={student.id}>
                                                         <td className="font-medium">{student.name}</td>
-                                                        <td className="text-red-600 font-semibold">{student.avgMarks}</td>
+                                                        <td className="text-red-600 font-semibold">{student.avgMarks}%</td>
                                                         <td>{student.attendancePercentage}%</td>
                                                     </tr>
                                                 ))}
@@ -212,7 +211,7 @@ const ReportsPage = () => {
                                                     <td className="font-medium">{student.name}</td>
                                                     <td>{student.standard}</td>
                                                     <td className="text-red-600 font-semibold">{student.attendancePercentage}%</td>
-                                                    <td>{student.avgMarks}</td>
+                                                    <td>{student.avgMarks}%</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -232,10 +231,10 @@ const ReportsPage = () => {
                                                 <BarChart data={batchPerformance}>
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis dataKey="name" />
-                                                    <YAxis />
+                                                    <YAxis domain={[0, 100]} />
                                                     <Tooltip />
                                                     <Bar dataKey="avgAttendance" fill="hsl(var(--primary))" name="Avg Attendance %" />
-                                                    <Bar dataKey="avgMarks" fill="hsl(142 76% 36%)" name="Avg Marks" />
+                                                    <Bar dataKey="avgMarks" fill="hsl(142 76% 36%)" name="Avg Marks (%)" />
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -256,7 +255,7 @@ const ReportsPage = () => {
                                                             <td className="font-medium">{batch.name}</td>
                                                             <td>{batch.studentCount}</td>
                                                             <td>{batch.avgAttendance}%</td>
-                                                            <td>{batch.avgMarks}</td>
+                                                            <td>{batch.avgMarks}%</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

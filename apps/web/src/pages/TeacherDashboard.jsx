@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Calendar, DollarSign, TrendingUp, Play, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { calculateAveragePercentage } from '@/lib/utils';
 
 const TeacherDashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,11 +48,8 @@ const TeacherDashboard = () => {
                 .select('*')
                 .eq('status', 'Pending');
 
-            const { data: testResults } = await supabase.from('test_results').select('*');
-            const validResults = (testResults || []).filter(r => r.marks !== null && !r.is_absent);
-            const avgMarks = (validResults.length > 0)
-                ? Math.round(validResults.reduce((sum, r) => sum + r.marks, 0) / validResults.length)
-                : 0;
+            const { data: testResults } = await supabase.from('test_results').select('*, tests(*)');
+            const avgMarks = calculateAveragePercentage(testResults);
 
             setStats({
                 totalStudents: students ? students.length : 0,
@@ -182,7 +180,7 @@ const TeacherDashboard = () => {
                                             <TrendingUp className="h-6 w-6 text-purple-600" />
                                         </div>
                                     </div>
-                                    <div className="text-3xl font-bold mb-1">{stats.avgPerformance}</div>
+                                    <div className="text-3xl font-bold mb-1">{stats.avgPerformance}%</div>
                                     <div className="text-sm text-muted-foreground">Avg Performance</div>
                                 </div>
                             </div>

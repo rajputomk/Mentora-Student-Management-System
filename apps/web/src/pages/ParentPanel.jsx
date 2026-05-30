@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Button } from '@/components/ui/button';
+import { calculateAveragePercentage } from '@/lib/utils';
 import { LogOut, Calendar as CalendarIcon, TrendingUp, DollarSign } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
@@ -106,10 +107,15 @@ const ParentPanel = () => {
     };
 
     const calculateAverageMarks = () => {
+        return calculateAveragePercentage(testResults);
+    };
+
+    const getAverageRawFraction = () => {
         const gradedResults = testResults.filter(r => r.marks !== null && !r.is_absent);
-        if (gradedResults.length === 0) return 0;
-        const total = gradedResults.reduce((sum, result) => sum + result.marks, 0);
-        return Math.round(total / gradedResults.length);
+        if (gradedResults.length === 0) return '0/0';
+        const totalObtained = gradedResults.reduce((sum, r) => sum + Number(r.marks), 0);
+        const totalMax = gradedResults.reduce((sum, r) => sum + Number(r.tests?.max_marks || 30), 0);
+        return `${totalObtained}/${totalMax}`;
     };
 
 
@@ -218,8 +224,13 @@ const ParentPanel = () => {
                                         <TrendingUp className="h-6 w-6 text-green-600" />
                                     </div>
                                 </div>
-                                <div className="text-3xl font-bold mb-1 text-foreground">{calculateAverageMarks()}</div>
-                                <div className="text-sm text-muted-foreground">Average Marks</div>
+                                <div className="text-3xl font-bold mb-1 text-foreground">{calculateAverageMarks()}%</div>
+                                <div className="text-sm text-muted-foreground flex flex-col gap-0.5">
+                                    <span>Average Marks</span>
+                                    <span className="text-xs font-normal opacity-85">
+                                        Based on total test scores ({getAverageRawFraction()})
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

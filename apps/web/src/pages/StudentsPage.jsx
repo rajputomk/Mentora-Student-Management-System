@@ -8,6 +8,7 @@ import StudentProfile from '@/components/StudentProfile.jsx';
 import { Button } from '@/components/ui/button';
 import { Plus, Eye, Pencil, Trash2, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { calculateAveragePercentage } from '@/lib/utils';
 
 const StudentsPage = () => {
     const [searchParams] = useSearchParams();
@@ -52,17 +53,14 @@ const StudentsPage = () => {
 
                 const { data: testResults } = await supabase
                     .from('test_results')
-                    .select('*')
+                    .select('*, tests(*)')
                     .eq('student_id', student.id);
 
                 const attendancePercentage = (attendance && attendance.length > 0)
                     ? Math.round((attendance.filter(a => a.status === 'Present').length / attendance.length) * 100)
                     : 0;
 
-                const validResults = (testResults || []).filter(r => r.marks !== null && !r.is_absent);
-                const avgMarks = (validResults.length > 0)
-                    ? Math.round(validResults.reduce((sum, r) => sum + r.marks, 0) / validResults.length)
-                    : 0;
+                const avgMarks = calculateAveragePercentage(testResults);
 
                 return {
                     ...student,
@@ -220,7 +218,7 @@ const StudentsPage = () => {
                                                     <td>{student.student_login_id}</td>
                                                     <td>{student.standard}</td>
                                                     <td>{student.attendancePercentage}%</td>
-                                                    <td>{student.avgMarks}</td>
+                                                    <td>{student.avgMarks}%</td>
                                                     <td>
                                                         <div className="flex gap-2">
                                                             <Button

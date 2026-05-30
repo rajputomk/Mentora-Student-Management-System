@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import AttendanceCalendar from './AttendanceCalendar.jsx';
+import { calculateAveragePercentage } from '@/lib/utils';
 
 const StudentProfile = ({ studentId, onClose }) => {
     const [student, setStudent] = useState(null);
@@ -94,10 +95,15 @@ const StudentProfile = ({ studentId, onClose }) => {
     };
 
     const calculateAverageMarks = () => {
+        return calculateAveragePercentage(testResults);
+    };
+
+    const getAverageRawFraction = () => {
         const gradedResults = testResults.filter(r => r.marks !== null && !r.is_absent);
-        if (gradedResults.length === 0) return 0;
-        const total = gradedResults.reduce((sum, result) => sum + result.marks, 0);
-        return Math.round(total / gradedResults.length);
+        if (gradedResults.length === 0) return '0/0';
+        const totalObtained = gradedResults.reduce((sum, r) => sum + Number(r.marks), 0);
+        const totalMax = gradedResults.reduce((sum, r) => sum + Number(r.tests?.max_marks || 30), 0);
+        return `${totalObtained}/${totalMax}`;
     };
 
 
@@ -154,8 +160,11 @@ const StudentProfile = ({ studentId, onClose }) => {
                                     <span className="font-semibold text-lg">{calculateAttendancePercentage()}%</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-muted-foreground">Average Marks</span>
-                                    <span className="font-semibold text-lg">{calculateAverageMarks()}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm text-muted-foreground">Average Marks</span>
+                                        <span className="text-xs text-muted-foreground opacity-80 font-normal">({getAverageRawFraction()})</span>
+                                    </div>
+                                    <span className="font-semibold text-lg">{calculateAverageMarks()}%</span>
                                 </div>
                             </div>
                         </div>
