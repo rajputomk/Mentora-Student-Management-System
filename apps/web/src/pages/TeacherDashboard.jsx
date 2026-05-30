@@ -48,8 +48,9 @@ const TeacherDashboard = () => {
                 .eq('status', 'Pending');
 
             const { data: testResults } = await supabase.from('test_results').select('*');
-            const avgMarks = (testResults && testResults.length > 0)
-                ? Math.round(testResults.reduce((sum, r) => sum + r.marks, 0) / testResults.length)
+            const validResults = (testResults || []).filter(r => r.marks !== null && !r.is_absent);
+            const avgMarks = (validResults.length > 0)
+                ? Math.round(validResults.reduce((sum, r) => sum + r.marks, 0) / validResults.length)
                 : 0;
 
             setStats({

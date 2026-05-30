@@ -59,8 +59,9 @@ const StudentsPage = () => {
                     ? Math.round((attendance.filter(a => a.status === 'Present').length / attendance.length) * 100)
                     : 0;
 
-                const avgMarks = (testResults && testResults.length > 0)
-                    ? Math.round(testResults.reduce((sum, r) => sum + r.marks, 0) / testResults.length)
+                const validResults = (testResults || []).filter(r => r.marks !== null && !r.is_absent);
+                const avgMarks = (validResults.length > 0)
+                    ? Math.round(validResults.reduce((sum, r) => sum + r.marks, 0) / validResults.length)
                     : 0;
 
                 return {

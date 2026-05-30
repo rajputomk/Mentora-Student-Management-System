@@ -31,8 +31,9 @@ const ReportsPage = () => {
                 const studentTests = (testResults || []).filter(r => r.student_id === student.id);
                 const studentAttendance = (attendance || []).filter(a => a.student_id === student.id);
 
-                const avgMarks = studentTests.length > 0
-                    ? Math.round(studentTests.reduce((sum, r) => sum + r.marks, 0) / studentTests.length)
+                const validTests = studentTests.filter(r => r.marks !== null && !r.is_absent);
+                const avgMarks = validTests.length > 0
+                    ? Math.round(validTests.reduce((sum, r) => sum + r.marks, 0) / validTests.length)
                     : 0;
 
                 const attendancePercentage = studentAttendance.length > 0
@@ -43,7 +44,7 @@ const ReportsPage = () => {
                     ...student,
                     avgMarks,
                     attendancePercentage,
-                    testCount: studentTests.length
+                    testCount: validTests.length
                 };
             });
 

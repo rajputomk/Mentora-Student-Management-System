@@ -34,14 +34,56 @@ const ParentPanel = () => {
             const sortedAttendance = (attendanceData || []).sort((a, b) => new Date(b.sessions?.date || 0) - new Date(a.sessions?.date || 0));
             setAttendance(sortedAttendance);
 
-            const { data: sessionsData } = await supabase.from('sessions').select('*').order('date', { ascending: false });
-            setSessions(sessionsData || []);
+            // Fetch student batch assignments to display only relevant sessions
+            const { data: studentBatches } = await supabase
+                .from('student_batches')
+                .select('batch_id')
+                .eq('student_id', studentData.id);
+            const batchIds = (studentBatches || []).map(sb => sb.batch_id);
 
+            let sessionsData = [];
+            if (batchIds.length > 0) {
+                const { data: sData } = await supabase
+                    .from('sessions')
+                    .select('*')
+                    .in('batch_id', batchIds)
+                    .order('date', { ascending: false });
+                sessionsData = sData || [];
+            }
+            setSessions(sessionsData);
+
+            // Fetch all tests belonging to these batch IDs to show complete test history
+            let testsData = [];
+            if (batchIds.length > 0) {
+                const { data: tData } = await supabase
+                    .from('tests')
+                    .select('*')
+                    .in('batch_id', batchIds);
+                testsData = tData || [];
+            }
+
+            // Fetch the student's test results
             const { data: testResultsData } = await supabase
                 .from('test_results')
                 .select('*, tests(*)')
                 .eq('student_id', studentData.id);
-            const sortedTests = (testResultsData || []).sort((a, b) => new Date(b.tests?.date || 0) - new Date(a.tests?.date || 0));
+
+            // Combine tests and test results so that tests with no marks entered are still visible
+            const combinedResults = testsData.map(test => {
+                const result = (testResultsData || []).find(r => r.test_id === test.id);
+                return {
+                    id: result?.id || `missing-${test.id}`,
+                    student_id: studentData.id,
+                    test_id: test.id,
+                    marks: result ? result.marks : null,
+                    is_absent: result ? !!result.is_absent : false,
+                    remarks: result ? result.remarks : 'Not graded / Absent',
+                    tests: test
+                };
+            });
+
+            // Sort all combined results chronologically (oldest first) so that the line chart is plotted continuously
+            const sortedTests = combinedResults.sort((a, b) => (a.tests?.date || '').localeCompare(b.tests?.date || ''));
             setTestResults(sortedTests);
 
             const { data: feesData } = await supabase.from('fees').select('*').eq('student_id', studentData.id).order('month', { ascending: false });
@@ -64,19 +106,23 @@ const ParentPanel = () => {
     };
 
     const calculateAverageMarks = () => {
-        if (testResults.length === 0) return 0;
-        const total = testResults.reduce((sum, result) => sum + result.marks, 0);
-        return Math.round(total / testResults.length);
+        const gradedResults = testResults.filter(r => r.marks !== null && !r.is_absent);
+        if (gradedResults.length === 0) return 0;
+        const total = gradedResults.reduce((sum, result) => sum + result.marks, 0);
+        return Math.round(total / gradedResults.length);
     };
 
 
 
     const getPerformanceChartData = () => {
-        return testResults.slice(0, 10).reverse().map(result => ({
-            name: result.tests?.name || 'Test',
-            marks: result.marks,
-            maxMarks: result.tests?.max_marks || 100
-        }));
+        return testResults
+            .filter(result => result.marks !== null && !result.is_absent)
+            .slice(-10)
+            .map(result => ({
+                name: result.tests?.name || 'Test',
+                marks: result.marks,
+                maxMarks: result.tests?.max_marks || 100
+            }));
     };
 
     const handleLogout = () => {
@@ -148,14 +194,6 @@ const ParentPanel = () => {
                                         <span className="font-semibold">{studentData?.parent_phone || 'Not Provided'}</span>
                                     </p>
                                 </div>
-                                <p>
-                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Email Address</span> 
-                                    <span className="font-semibold">{studentData?.email || 'Not Provided'}</span>
-                                </p>
-                                <p>
-                                    <span className="text-muted-foreground font-medium block text-xs uppercase tracking-wider mb-1">Residential Address</span> 
-                                    <span className="font-semibold">{studentData?.address || 'Not Provided'}</span>
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -163,7 +201,7 @@ const ParentPanel = () => {
                     {/* Performance Summary Section */}
                     <div>
                         <h2 className="text-2xl font-bold mb-6 text-foreground">Performance Summary</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="mentora-card">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -183,18 +221,6 @@ const ParentPanel = () => {
                                 <div className="text-3xl font-bold mb-1 text-foreground">{calculateAverageMarks()}</div>
                                 <div className="text-sm text-muted-foreground">Average Marks</div>
                             </div>
-
-                            <div className="mentora-card">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                                        <DollarSign className="h-6 w-6 text-red-600" />
-                                    </div>
-                                </div>
-                                <div className="text-3xl font-bold mb-1 text-foreground">
-                                    {fees.filter(f => f.status === 'Pending').length > 0 ? 'Pending' : 'Paid'}
-                                </div>
-                                <div className="text-sm text-muted-foreground">Fee Status</div>
-                            </div>
                         </div>
                     </div>
 
@@ -206,42 +232,54 @@ const ParentPanel = () => {
                     <div className="mentora-card">
                         <h2 className="text-2xl font-bold mb-6">Test Performance</h2>
                         {testResults.length > 0 ? (
-                            <>
-                                <div className="h-80 mb-6">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={getPerformanceChartData()}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Line type="monotone" dataKey="marks" stroke="hsl(var(--primary))" strokeWidth={2} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
+                            (() => {
+                                const chartData = getPerformanceChartData();
+                                const maxChartMarks = chartData.length > 0 ? Math.max(...chartData.map(d => Math.max(d.maxMarks, d.marks))) : 20;
+                                return (
+                                    <>
+                                        <div className="h-80 mb-6">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={chartData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="name" />
+                                                    <YAxis domain={[0, maxChartMarks]} />
+                                                    <Tooltip />
+                                                    <Line type="monotone" dataKey="marks" stroke="hsl(var(--primary))" strokeWidth={2} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
 
-                                <div className="overflow-x-auto">
-                                    <table className="mentora-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Test Name</th>
-                                                <th>Date</th>
-                                                <th>Marks</th>
-                                                <th>Remarks</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {testResults.map(result => (
-                                                <tr key={result.id}>
-                                                    <td className="font-medium">{result.tests?.name}</td>
-                                                    <td>{result.tests?.date ? format(new Date(result.tests.date), 'PP') : '-'}</td>
-                                                    <td>{result.marks} / {result.tests?.max_marks}</td>
-                                                    <td>{result.remarks || '-'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
+                                        <div className="overflow-x-auto">
+                                            <table className="mentora-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Test Name</th>
+                                                        <th>Date</th>
+                                                        <th>Marks</th>
+                                                        <th>Remarks</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                     {[...testResults].reverse().map(result => (
+                                                         <tr key={result.id}>
+                                                             <td className="font-medium">{result.tests?.name}</td>
+                                                             <td>{result.tests?.date ? format(new Date(result.tests.date), 'PP') : '-'}</td>
+                                                             <td>
+                                                                 {result.is_absent ? (
+                                                                     <span className="text-red-600 font-semibold">Absent</span>
+                                                                 ) : (
+                                                                     `${result.marks !== null ? result.marks : '-'} / ${result.tests?.max_marks}`
+                                                                 )}
+                                                             </td>
+                                                             <td>{result.remarks || '-'}</td>
+                                                         </tr>
+                                                     ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                );
+                            })()
                         ) : (
                             <p className="text-muted-foreground text-center py-12">No test results available</p>
                         )}
@@ -269,50 +307,7 @@ const ParentPanel = () => {
                         )}
                     </div>
 
-                    <div className="mentora-card">
-                        <h2 className="text-2xl font-bold mb-6">Fee Details</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div className="p-6 bg-green-50 rounded-lg">
-                                <div className="text-3xl font-bold text-green-700 mb-2">
-                                    ₹{fees.filter(f => f.status === 'Paid').reduce((sum, f) => sum + f.amount, 0)}
-                                </div>
-                                <div className="text-sm text-green-600">Total Paid</div>
-                            </div>
-                            <div className="p-6 bg-red-50 rounded-lg">
-                                <div className="text-3xl font-bold text-red-700 mb-2">
-                                    ₹{fees.filter(f => f.status === 'Pending').reduce((sum, f) => sum + f.amount, 0)}
-                                </div>
-                                <div className="text-sm text-red-600">Pending Payment</div>
-                            </div>
-                        </div>
 
-                        {fees.length > 0 && (
-                            <div className="overflow-x-auto">
-                                <table className="mentora-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Month</th>
-                                            <th>Amount</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {fees.map(fee => (
-                                            <tr key={fee.id}>
-                                                <td>{fee.month}</td>
-                                                <td>₹{fee.amount}</td>
-                                                <td>
-                                                    <span className={fee.status === 'Paid' ? 'status-paid' : 'status-pending'}>
-                                                        {fee.status}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
 
                     <div className="mentora-card">
                         <h2 className="text-2xl font-bold mb-6">Teacher Notes</h2>

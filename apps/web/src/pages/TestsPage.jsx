@@ -161,12 +161,13 @@ const TestsPage = () => {
             const upsertData = [];
             for (const student of students) {
                 const data = marksData[student.id];
-                if (data && data.marks !== '') {
+                if (data) {
                     upsertData.push({
                         student_id: student.id,
                         test_id: selectedTest.id,
-                        marks: parseInt(data.marks),
-                        remarks: data.remarks
+                        marks: data.is_absent || data.marks === '' ? null : parseInt(data.marks),
+                        remarks: data.remarks || '',
+                        is_absent: !!data.is_absent
                     });
                 }
             }
@@ -215,8 +216,9 @@ const TestsPage = () => {
             studentsList.forEach(student => {
                 const existing = existingResultsArr.find(r => r.student_id === student.id);
                 initialMarks[student.id] = {
-                    marks: existing ? existing.marks.toString() : '',
-                    remarks: existing ? existing.remarks : ''
+                    marks: existing && existing.marks !== null ? existing.marks.toString() : '',
+                    remarks: existing ? existing.remarks : '',
+                    is_absent: existing ? !!existing.is_absent : false
                 };
             });
             setMarksData(initialMarks);
@@ -410,26 +412,45 @@ const TestsPage = () => {
                         <div className="p-6 max-h-[60vh] overflow-y-auto">
                             <div className="space-y-4">
                                 {students.map(student => (
-                                    <div key={student.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                                        <div className="flex items-center">
-                                            <div>
-                                                <div className="font-medium">{student.name}</div>
-                                                <div className="text-sm text-muted-foreground">{student.student_login_id}</div>
-                                            </div>
+                                    <div key={student.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg items-center">
+                                        <div>
+                                            <div className="font-medium">{student.name}</div>
+                                            <div className="text-sm text-muted-foreground">{student.student_login_id}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id={`absent-${student.id}`}
+                                                checked={marksData[student.id]?.is_absent || false}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    setMarksData({
+                                                        ...marksData,
+                                                        [student.id]: {
+                                                            ...marksData[student.id],
+                                                            is_absent: isChecked,
+                                                            marks: isChecked ? '' : (marksData[student.id]?.marks || '')
+                                                        }
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                            />
+                                            <label htmlFor={`absent-${student.id}`} className="text-sm font-medium select-none cursor-pointer">Absent</label>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">Marks</label>
                                             <input
                                                 type="number"
-                                                value={marksData[student.id]?.marks || ''}
+                                                value={marksData[student.id]?.is_absent ? '' : (marksData[student.id]?.marks || '')}
+                                                disabled={marksData[student.id]?.is_absent || false}
                                                 onChange={(e) => setMarksData({
                                                     ...marksData,
                                                     [student.id]: { ...marksData[student.id], marks: e.target.value }
                                                 })}
                                                 min="0"
                                                 max={selectedTest.max_marks}
-                                                className="mentora-input text-foreground"
-                                                placeholder="Enter marks"
+                                                className="mentora-input text-foreground disabled:opacity-50 disabled:bg-muted-foreground/10"
+                                                placeholder={marksData[student.id]?.is_absent ? "Absent" : "Enter marks"}
                                             />
                                         </div>
                                         <div>
